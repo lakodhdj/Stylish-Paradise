@@ -1,0 +1,81 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    depends_on:
+      - backend
+    expose:
+      - "80"
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    depends_on:
+      - sqlite
+      - minio
+    expose:
+      - "4000"
+    ports:
+      - "${BACKEND_PORT:-4000}:4000"
+    volumes:
+      - sqlite_data:/app/data
+    environment:
+      - NODE_ENV=production
+      - DB_FILE=/app/data/database.sqlite
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_USE_SSL=false
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=${MINIO_BUCKET}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
+    restart: unless-stopped
+
+  sqlite:
+    build:
+      context: .
+      dockerfile: docker/sqlite/Dockerfile
+    volumes:
+      - sqlite_data:/data
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "${NPM_HTTP_PORT:-80}:80"
+      - "${NPM_HTTPS_PORT:-443}:443"
+      - "${NPM_ADMIN_PORT:-81}:81"
+    environment:
+      - DB_SQLITE_FILE=/data/database.sqlite
+      - DISABLE_IPV6=true
+    volumes:
+      - npm_data:/data
+      - npm_letsencrypt:/etc/letsencrypt
+    restart: unless-stopped
+
+volumes:
+  sqlite_data:
+  minio_data:
+  npm_data:
+  npm_letsencrypt:

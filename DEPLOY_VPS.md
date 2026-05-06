@@ -4,10 +4,13 @@
 
 1. Copy `.env.example` to `.env`.
 2. Set secure MinIO credentials (do not use defaults in production):
+   - `MINIO_ROOT_USER`
    - `MINIO_ROOT_PASSWORD`
-   - `MINIO_SECRET_KEY`
-3. Keep:
-   - `MINIO_PUBLIC_URL=http://64.188.92.174:9000`
+3. Set public MinIO URLs via your domain (without `:9000`):
+   - `MINIO_PUBLIC_URL=https://imgstylish.conperf.pro`
+   - `MINIO_SERVER_URL=https://imgstylish.conperf.pro`
+   - `MINIO_BROWSER_REDIRECT_URL=https://imgstylish.conperf.pro`
+4. Keep:
    - `COMPOSE_PROJECT_NAME=stylish-paradise`
 
 ## 2) Choose one data mode
@@ -45,7 +48,7 @@ docker compose up -d --build
 ```bash
 docker compose ps
 curl -I http://64.188.92.174
-curl -I http://64.188.92.174:9000
+curl -I https://imgstylish.conperf.pro
 ```
 
 ## 4) Nginx Proxy Manager note

@@ -4,20 +4,27 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+      minio:
+        condition: service_healthy
     expose:
       - "80"
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     restart: unless-stopped
+    networks:
+      - stylish_paradise_net
 
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
     depends_on:
-      - sqlite
-      - minio
+      sqlite:
+        condition: service_started
+      minio:
+        condition: service_healthy
     expose:
       - "4000"
     ports:
@@ -30,11 +37,13 @@ services:
       - MINIO_ENDPOINT=minio
       - MINIO_PORT=9000
       - MINIO_USE_SSL=false
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
       - MINIO_BUCKET=${MINIO_BUCKET}
       - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL}
     restart: unless-stopped
+    networks:
+      - stylish_paradise_net
 
   sqlite:
     build:
@@ -43,6 +52,8 @@ services:
     volumes:
       - sqlite_data:/data
     restart: unless-stopped
+    networks:
+      - stylish_paradise_net
 
   minio:
     image: minio/minio:latest
@@ -53,9 +64,19 @@ services:
     environment:
       - MINIO_ROOT_USER=${MINIO_ROOT_USER}
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_SERVER_URL=${MINIO_SERVER_URL:-}
+      - MINIO_BROWSER_REDIRECT_URL=${MINIO_BROWSER_REDIRECT_URL:-}
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     restart: unless-stopped
+    networks:
+      - stylish_paradise_net
 
   nginx-proxy-manager:
     image: jc21/nginx-proxy-manager:latest
@@ -73,9 +94,15 @@ services:
       - npm_data:/data
       - npm_letsencrypt:/etc/letsencrypt
     restart: unless-stopped
+    networks:
+      - stylish_paradise_net
 
 volumes:
   sqlite_data:
   minio_data:
   npm_data:
   npm_letsencrypt:
+
+networks:
+  stylish_paradise_net:
+    name: stylish_paradise_net
